@@ -1,0 +1,685 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>House Debt Dashboard</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #181b24; --border: #262b38;
+    --text: #e8eaf0; --muted: #8a90a2;
+    --accent: #4ade80; --accent2: #22c55e; --danger: #f87171;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; padding: 32px 20px;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--text);
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 20px; }
+  .top {
+    max-width: 1100px; margin: 0 auto 20px;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+  }
+  h1 {
+    margin: 0; font-size: 14px; font-weight: 600; color: var(--muted);
+    letter-spacing: .08em; text-transform: uppercase;
+  }
+  .actions { display: flex; gap: 8px; }
+  .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+  .grid.even { grid-template-columns: 1fr 1fr; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px;
+  }
+  .label {
+    color: var(--muted); font-size: 13px;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  .big {
+    font-size: 72px; font-weight: 700; margin: 8px 0 32px;
+    font-variant-numeric: tabular-nums; line-height: 1.1;
+  }
+  .big-sm {
+    font-size: 40px; font-weight: 700; margin: 8px 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .sub { color: var(--muted); font-size: 14px; }
+  .bar { height: 18px; background: var(--border); border-radius: 999px; overflow: hidden; }
+  .fill {
+    height: 100%; width: 0;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    transition: width .6s ease;
+  }
+  .bar-meta {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+    color: var(--muted); font-size: 14px; margin-top: 10px;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  td, th {
+    padding: 14px 0; border-bottom: 1px solid var(--border); text-align: left;
+  }
+  th { color: var(--muted); font-size: 13px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--muted); }
+  .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .total-row td { color: var(--text); font-size: 18px; border-top: 1px solid var(--accent2); }
+  .total-row td.num { color: var(--accent); }
+ 
+  .chart { width: 100%; height: auto; margin-top: 12px; }
+  .chart .v { fill: var(--text); font-size: 12px; font-weight: 600; text-anchor: middle; }
+  .chart .m { fill: var(--muted); font-size: 12px; text-anchor: middle; }
+ 
+  button {
+    background: var(--accent2); color: #04130a; border: none; border-radius: 8px;
+    padding: 10px 18px; font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  button.ghost {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+    padding: 8px 14px; font-weight: 500;
+  }
+  button.danger {
+    background: transparent; color: var(--danger); border: 1px solid var(--border);
+    padding: 6px 12px; font-weight: 500;
+  }
+ 
+  .form-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 14px; margin-top: 18px;
+  }
+  label.field { font-size: 13px; color: var(--muted); display: flex; flex-direction: column; gap: 6px; }
+  input {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 10px; border-radius: 8px; font-size: 15px; width: 100%;
+  }
+  .computed {
+    background: var(--bg); border: 1px dashed var(--border); border-radius: 8px;
+    padding: 10px; font-size: 15px; color: var(--accent); font-weight: 600;
+  }
+  .form-actions { display: flex; gap: 10px; align-items: center; margin-top: 20px; flex-wrap: wrap; }
+  .msg { color: var(--danger); font-size: 14px; min-height: 18px; margin-top: 12px; }
+  .msg.ok { color: var(--accent); }
+ 
+  .setup { max-width: 720px; margin: 40px auto; }
+  .setup h2 { margin: 0 0 6px; font-size: 22px; }
+  .section-title { margin-top: 28px; }
+  .divider { border-top: 1px solid var(--border); margin: 28px 0 0; }
+  .payer-grid {
+    display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: center;
+  }
+  .payer-head { margin-top: 16px; color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: .05em; }
+  .payer-rows { display: grid; gap: 8px; margin-top: 8px; }
+  .opening { margin-top: 14px; }
+  .opening strong { color: var(--text); }
+ 
+  dialog {
+    background: var(--panel); color: var(--text); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px; width: min(780px, 94vw); max-height: 90vh;
+  }
+  dialog::backdrop { background: rgba(0, 0, 0, .6); }
+  dialog h2 { margin: 0 0 4px; font-size: 20px; }
+  .dialog-head { display: flex; justify-content: space-between; align-items: center; }
+  .pay-table td input { width: 130px; padding: 8px; font-size: 14px; }
+  .pay-table td, .pay-table th { padding: 10px 6px; }
+  .pay-table td.num input { text-align: right; }
+  .entries-list { margin-top: 24px; max-height: 240px; overflow-y: auto; }
+  .entries-list td { font-size: 14px; }
+  .empty { color: var(--muted); padding: 16px 0; font-size: 14px; }
+ 
+  @media (max-width: 800px) {
+    .grid, .grid.even { grid-template-columns: 1fr; }
+    .big { font-size: 48px; }
+    .pay-table td input { width: 100%; min-width: 90px; }
+    .payer-grid { grid-template-columns: 1fr; }
+    .payer-head { display: none; }
+  }
+</style>
+</head>
+<body>
+ 
+<!-- ============ SETUP SCREEN ============ -->
+<section id="setup" class="setup panel" hidden>
+  <div class="label">Setup</div>
+  <h2>Configure your loan</h2>
+  <p class="sub" style="margin-top:6px">These values drive every calculation on the dashboard.</p>
+ 
+  <form id="setup-form">
+    <div class="label section-title">Loan</div>
+    <div class="form-grid">
+      <label class="field">Debt value (original loan)
+        <input type="number" id="c-principal" step="100" min="0" required>
+      </label>
+      <label class="field">Euribor (% per year)
+        <input type="number" id="c-euribor" step="0.01" min="0" required>
+      </label>
+      <label class="field">Spread (% per year)
+        <input type="number" id="c-spread" step="0.01" min="0" required>
+      </label>
+      <div class="field">Interest rate (Euribor + spread)
+        <div class="computed" id="c-rate-out">—</div>
+      </div>
+      <label class="field">Insurance (monthly)
+        <input type="number" id="c-insurance" step="0.01" min="0" required>
+      </label>
+      <label class="field">Other monthly costs
+        <input type="number" id="c-other" step="0.01" min="0" required>
+      </label>
+      <label class="field">Loan term (months)
+        <input type="number" id="c-term" step="1" min="1" required>
+      </label>
+      <label class="field">First installment (month)
+        <input type="month" id="c-start" required>
+      </label>
+    </div>
+ 
+    <div class="divider"></div>
+    <div class="label section-title">Payers</div>
+    <p class="sub" style="margin-top:6px">Everyone who shares this loan. "Already paid" is what they have repaid toward the loan before using this dashboard. It reduces the starting debt.</p>
+ 
+    <div class="payer-head payer-grid" style="margin-top:16px">
+      <span>Name</span><span>Already paid</span><span></span>
+    </div>
+    <div id="setup-payers" class="payer-rows"></div>
+    <div class="form-actions">
+      <button type="button" class="ghost" id="add-payer">+ Add payer</button>
+    </div>
+ 
+    <div class="sub opening" id="opening"></div>
+ 
+    <div class="form-actions">
+      <button type="submit">Open dashboard</button>
+      <button type="button" class="ghost" id="setup-back" hidden>Back to dashboard</button>
+    </div>
+    <div class="msg" id="setup-msg"></div>
+  </form>
+</section>
+ 
+<!-- ============ DASHBOARD ============ -->
+<div id="dashboard" hidden>
+  <header class="top">
+    <h1>House Debt</h1>
+    <div class="actions">
+      <button class="ghost" id="btn-entries">Monthly entries</button>
+      <button class="ghost" id="btn-settings">Settings</button>
+    </div>
+  </header>
+ 
+  <div class="wrap">
+    <div class="grid">
+      <div class="panel">
+        <div class="label">Remaining debt</div>
+        <div class="big" id="debt">—</div>
+        <div class="bar"><div class="fill" id="fill"></div></div>
+        <div class="bar-meta">
+          <span id="pct"></span>
+          <span id="orig"></span>
+        </div>
+      </div>
+ 
+      <div class="panel">
+        <table>
+          <tr><td>Debt</td><td class="num" id="t-debt">—</td></tr>
+          <tr><td>Interest paid</td><td class="num" id="t-interest">—</td></tr>
+          <tr><td>Months left</td><td class="num" id="t-months">—</td></tr>
+          <tr><td>Insurance</td><td class="num" id="t-insurance">—</td></tr>
+          <tr><td>Unapplied savings</td><td class="num" id="t-savings">—</td></tr>
+        </table>
+      </div>
+    </div>
+ 
+    <div class="grid even">
+      <div class="panel">
+        <div class="label" id="monthly-title">Monthly payment</div>
+        <table style="margin-top:8px">
+          <tr><td>Monthly payment</td><td class="num" id="m-pay">—</td></tr>
+          <tr><td>Insurance</td><td class="num" id="m-ins">—</td></tr>
+          <tr><td>Other monthly costs</td><td class="num" id="m-other">—</td></tr>
+          <tr class="total-row"><td>Total</td><td class="num" id="m-total">—</td></tr>
+        </table>
+      </div>
+ 
+      <div class="panel">
+        <div class="label">Euribor 6M · last 6 months</div>
+        <div class="big-sm" id="eur-latest">—</div>
+        <div class="sub" id="eur-sub"></div>
+        <div id="eur-chart"></div>
+        <div class="msg" id="eur-msg"></div>
+      </div>
+    </div>
+  </div>
+</div>
+ 
+<!-- ============ ENTRIES DIALOG ============ -->
+<dialog id="entries-dialog">
+  <div class="dialog-head">
+    <h2>Monthly entries</h2>
+    <button class="ghost" id="close-entries">Close</button>
+  </div>
+  <p class="sub">Enter what each payer contributed this month. Down payments reduce the loan. Saved amounts are set aside and not yet applied.</p>
+ 
+  <div id="no-payers" class="empty" hidden>Add payers in Settings first.</div>
+ 
+  <form id="entry-form" hidden>
+    <div class="form-grid" style="grid-template-columns: 1fr; margin-top: 14px;">
+      <label class="field">Month
+        <input type="month" id="f-month" required>
+      </label>
+    </div>
+ 
+    <table class="pay-table" style="margin-top: 14px;">
+      <thead>
+        <tr>
+          <th>Payer</th>
+          <th class="num">Monthly payment</th>
+          <th class="num">Down payment</th>
+          <th class="num">Saved</th>
+        </tr>
+      </thead>
+      <tbody id="pay-rows"></tbody>
+      <tfoot>
+        <tr class="total-row">
+          <td>Total</td>
+          <td class="num" id="tot-pay">—</td>
+          <td class="num" id="tot-down">—</td>
+          <td class="num" id="tot-saved">—</td>
+        </tr>
+      </tfoot>
+    </table>
+ 
+    <div class="sub" id="expected" style="margin-top: 10px;"></div>
+    <div class="form-actions">
+      <button type="submit">Save entry</button>
+    </div>
+    <div class="msg" id="entry-msg"></div>
+  </form>
+ 
+  <div class="label" style="margin-top: 22px;">Totals per payer</div>
+  <table style="margin-top: 6px;">
+    <thead>
+      <tr><th>Payer</th><th class="num">Already paid</th><th class="num">Payments</th><th class="num">Down</th><th class="num">Saved</th></tr>
+    </thead>
+    <tbody id="payer-totals"></tbody>
+  </table>
+ 
+  <div class="entries-list">
+    <table>
+      <thead>
+        <tr><th>Month</th><th>Paid by</th><th class="num">Down</th><th class="num">Saved</th><th></th></tr>
+      </thead>
+      <tbody id="entries-body"></tbody>
+    </table>
+    <div class="empty" id="entries-empty" hidden>No entries yet.</div>
+  </div>
+</dialog>
+ 
+<script>
+  const CURRENCY = 'EUR';
+  const LOCALE = 'en-US';
+ 
+  const $ = id => document.getElementById(id);
+  let state = null;
+ 
+  function fmt(n, digits = 0) {
+    return new Intl.NumberFormat(LOCALE, {
+      style: 'currency', currency: CURRENCY,
+      minimumFractionDigits: digits, maximumFractionDigits: digits
+    }).format(Number(n) || 0);
+  }
+ 
+  function monthLabel(ym) {
+    if (!ym) return '';
+    const [y, m] = ym.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString(LOCALE, { month: 'short', year: 'numeric' });
+  }
+ 
+  function monthShort(ym) {
+    const [y, m] = ym.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString(LOCALE, { month: 'short' });
+  }
+ 
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+ 
+  async function api(url, options = {}) {
+    const res = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...options });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || res.statusText);
+    return data;
+  }
+ 
+  // ---------- setup ----------
+ 
+  function updateRateOutput() {
+    const e = parseFloat($('c-euribor').value) || 0;
+    const s = parseFloat($('c-spread').value) || 0;
+    $('c-rate-out').textContent = (e + s).toFixed(2) + '%';
+  }
+  $('c-euribor').addEventListener('input', updateRateOutput);
+  $('c-spread').addEventListener('input', updateRateOutput);
+ 
+  // Read the payer rows currently on screen (keeps typed values when rows change).
+  function captureSetupRows() {
+    return [...document.querySelectorAll('#setup-payers .payer-row')].map(r => ({
+      id: r.dataset.id || null,
+      name: r.querySelector('.p-name').value,
+      already_paid: r.querySelector('.p-paid').value
+    }));
+  }
+ 
+  function drawSetupRows(rows) {
+    $('setup-payers').innerHTML = rows.map((r, i) => `
+      <div class="payer-row payer-grid" data-id="${r.id || ''}">
+        <input class="p-name" placeholder="Name" maxlength="40" value="${esc(r.name || '')}">
+        <input class="p-paid" type="number" step="0.01" min="0" placeholder="0" value="${r.already_paid ?? ''}">
+        <button type="button" class="danger" data-remove-row="${i}">Remove</button>
+      </div>`).join('');
+    updateOpening();
+  }
+ 
+  function updateOpening() {
+    const principal = parseFloat($('c-principal').value) || 0;
+    const paid = captureSetupRows().reduce((acc, r) => acc + (parseFloat(r.already_paid) || 0), 0);
+    const opening = Math.max(0, principal - paid);
+    $('opening').innerHTML = `Already paid by payers: <strong>${fmt(paid, 2)}</strong> · Starting debt: <strong>${fmt(opening, 2)}</strong>`;
+  }
+ 
+  $('add-payer').addEventListener('click', () => {
+    const rows = captureSetupRows();
+    rows.push({ id: null, name: '', already_paid: '' });
+    drawSetupRows(rows);
+  });
+ 
+  $('setup-payers').addEventListener('click', e => {
+    const i = e.target.dataset.removeRow;
+    if (i === undefined) return;
+    const rows = captureSetupRows();
+    rows.splice(Number(i), 1);
+    drawSetupRows(rows);
+  });
+ 
+  $('setup-payers').addEventListener('input', updateOpening);
+  $('c-principal').addEventListener('input', updateOpening);
+ 
+  function showSetup(firstTime) {
+    $('dashboard').hidden = true;
+    $('setup').hidden = false;
+    $('setup-back').hidden = firstTime;
+    const s = state.settings;
+    $('c-principal').value = s.principal;
+    $('c-euribor').value = s.euribor_rate;
+    $('c-spread').value = s.spread;
+    $('c-insurance').value = s.insurance;
+    $('c-other').value = s.other_monthly;
+    $('c-term').value = s.term_months;
+    $('c-start').value = s.start_month;
+    updateRateOutput();
+    const rows = state.payers.map(p => ({ id: p.id, name: p.name, already_paid: p.already_paid }));
+    drawSetupRows(rows.length ? rows : [{ id: null, name: '', already_paid: '' }]);
+    $('setup-msg').textContent = '';
+  }
+ 
+  function showDashboard() {
+    $('setup').hidden = true;
+    $('dashboard').hidden = false;
+    render();
+  }
+ 
+  $('setup-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('setup-msg').textContent = '';
+ 
+    const rows = captureSetupRows().map(r => ({
+      id: r.id ? Number(r.id) : null,
+      name: r.name.trim(),
+      already_paid: parseFloat(r.already_paid) || 0
+    }));
+    if (!rows.length) {
+      $('setup-msg').textContent = 'Add at least one payer.';
+      return;
+    }
+    if (rows.some(r => !r.name)) {
+      $('setup-msg').textContent = 'Every payer needs a name.';
+      return;
+    }
+ 
+    try {
+      state = await api('/api/payers', {
+        method: 'PUT',
+        body: JSON.stringify({ payers: rows })
+      });
+      state = await api('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          setup_done: true,
+          principal: parseFloat($('c-principal').value),
+          euribor_rate: parseFloat($('c-euribor').value),
+          spread: parseFloat($('c-spread').value),
+          insurance: parseFloat($('c-insurance').value),
+          other_monthly: parseFloat($('c-other').value),
+          term_months: parseInt($('c-term').value, 10),
+          start_month: $('c-start').value
+        })
+      });
+      showDashboard();
+    } catch (err) {
+      $('setup-msg').textContent = err.message;
+    }
+  });
+ 
+  $('setup-back').addEventListener('click', showDashboard);
+  $('btn-settings').addEventListener('click', () => showSetup(false));
+ 
+  // ---------- dashboard ----------
+ 
+  function chartSVG(series) {
+    if (!series.length) return '';
+    const W = 600, H = 240, padL = 30, padR = 30, padT = 36, padB = 40;
+    const vals = series.map(s => s.rate);
+    let min = Math.min(...vals), max = Math.max(...vals);
+    if (max - min < 0.2) { const mid = (max + min) / 2; min = mid - 0.1; max = mid + 0.1; }
+    const x = i => series.length === 1 ? W / 2 : padL + i * (W - padL - padR) / (series.length - 1);
+    const y = v => padT + (max - v) / (max - min) * (H - padT - padB);
+    const points = series.map((s, i) => `${x(i)},${y(s.rate)}`).join(' ');
+    const dots = series.map((s, i) => `
+      <circle cx="${x(i)}" cy="${y(s.rate)}" r="5" fill="#4ade80"/>
+      <text class="v" x="${x(i)}" y="${y(s.rate) - 12}">${s.rate.toFixed(2)}%</text>
+      <text class="m" x="${x(i)}" y="${H - 12}">${monthShort(s.month)}</text>`).join('');
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet">
+      <polyline points="${points}" fill="none" stroke="#4ade80" stroke-width="2.5" stroke-linejoin="round"/>
+      ${dots}
+    </svg>`;
+  }
+ 
+  function render() {
+    if (!state) return;
+    const d = state.dashboard;
+ 
+    $('debt').textContent = fmt(d.debt);
+    $('fill').style.width = (d.paid_pct * 100).toFixed(2) + '%';
+    $('pct').textContent = (d.paid_pct * 100).toFixed(1) + '% paid off';
+    $('orig').textContent = 'Original loan ' + fmt(d.original);
+ 
+    $('t-debt').textContent = fmt(d.debt);
+    $('t-interest').textContent = fmt(d.interest_paid);
+    $('t-months').textContent = d.months_left
+      ? `${d.months_left} months (ends ${monthLabel(d.end_month)})`
+      : 'Paid off';
+    $('t-insurance').textContent = fmt(d.insurance, 2) + ' / month';
+    $('t-savings').textContent = fmt(d.unapplied_savings, 2);
+ 
+    $('monthly-title').textContent = 'Monthly payment · ' + monthLabel(d.next_month);
+    $('m-pay').textContent = fmt(d.monthly.installment, 2);
+    $('m-ins').textContent = fmt(d.monthly.insurance, 2);
+    $('m-other').textContent = fmt(d.monthly.other, 2);
+    $('m-total').textContent = fmt(d.monthly.total, 2);
+ 
+    const eu = state.euribor;
+    if (eu.latest) {
+      $('eur-latest').textContent = eu.latest.rate.toFixed(2) + '%';
+      const diff = eu.latest.rate - eu.series[0].rate;
+      $('eur-sub').textContent = `${monthLabel(eu.latest.month)} · ${diff > 0 ? '+' : ''}${diff.toFixed(2)} pts over the period`;
+    } else {
+      $('eur-latest').textContent = '—';
+      $('eur-sub').textContent = '';
+    }
+    $('eur-chart').innerHTML = eu.series.length
+      ? chartSVG(eu.series)
+      : '<div class="empty">No Euribor data yet.</div>';
+    $('eur-msg').textContent = eu.error || '';
+  }
+ 
+  // ---------- monthly entries dialog ----------
+ 
+  function readField(payerId, field) {
+    const el = document.querySelector(`[data-payer="${payerId}"][data-field="${field}"]`);
+    return el ? (parseFloat(el.value) || 0) : 0;
+  }
+ 
+  function renderPayRows(month) {
+    const existing = state.entries.find(e => e.month === month);
+    $('pay-rows').innerHTML = state.payers.map(p => {
+      const line = existing && existing.lines.find(l => l.payer_id === p.id);
+      const val = field => line ? line[field] : '';
+      return `<tr>
+        <td>${esc(p.name)}</td>
+        <td class="num"><input type="number" step="0.01" min="0" data-payer="${p.id}" data-field="payment" value="${val('payment')}"></td>
+        <td class="num"><input type="number" step="0.01" min="0" data-payer="${p.id}" data-field="down_payment" value="${val('down_payment')}"></td>
+        <td class="num"><input type="number" step="0.01" min="0" data-payer="${p.id}" data-field="saved_amount" value="${val('saved_amount')}"></td>
+      </tr>`;
+    }).join('');
+    updateTotals();
+  }
+ 
+  function updateTotals() {
+    const sum = field => state.payers.reduce((acc, p) => acc + readField(p.id, field), 0);
+    const pay = sum('payment');
+    $('tot-pay').textContent = fmt(pay, 2);
+    $('tot-down').textContent = fmt(sum('down_payment'), 2);
+    $('tot-saved').textContent = fmt(sum('saved_amount'), 2);
+ 
+    const expected = state.dashboard.monthly.installment;
+    let note = `Expected monthly payment: ${fmt(expected, 2)}`;
+    if (pay > 0 && Math.abs(pay - expected) > 0.01) {
+      note += ` · entered ${pay > expected ? 'more' : 'less'} by ${fmt(Math.abs(pay - expected), 2)}`;
+    }
+    $('expected').textContent = note;
+  }
+ 
+  function renderPayerTotals() {
+    $('payer-totals').innerHTML = state.payer_totals.map(t => `<tr>
+      <td>${esc(t.name)}</td>
+      <td class="num">${fmt(t.already_paid, 2)}</td>
+      <td class="num">${fmt(t.payment, 2)}</td>
+      <td class="num">${fmt(t.down_payment, 2)}</td>
+      <td class="num">${fmt(t.saved_amount, 2)}</td>
+    </tr>`).join('');
+  }
+ 
+  function renderEntries() {
+    $('entries-body').innerHTML = state.entries.map(e => {
+      const paidBy = e.lines.length
+        ? e.lines.map(l => `${esc(l.payer_name)} ${fmt(l.payment, 2)}`).join(' · ')
+        : '—';
+      return `<tr>
+        <td>${monthLabel(e.month)}</td>
+        <td class="sub">${paidBy}</td>
+        <td class="num">${fmt(e.down_payment, 2)}</td>
+        <td class="num">${fmt(e.saved_amount, 2)}</td>
+        <td class="num">
+          <button class="ghost" data-edit="${e.month}">Edit</button>
+          <button class="danger" data-del="${e.month}">Delete</button>
+        </td>
+      </tr>`;
+    }).join('');
+    $('entries-empty').hidden = state.entries.length > 0;
+  }
+ 
+  function openEntries() {
+    const hasPayers = state.payers.length > 0;
+    $('no-payers').hidden = hasPayers;
+    $('entry-form').hidden = !hasPayers;
+    $('entry-msg').textContent = '';
+    if (hasPayers) {
+      const now = new Date();
+      $('f-month').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      renderPayRows($('f-month').value);
+    }
+    renderPayerTotals();
+    renderEntries();
+    $('entries-dialog').showModal();
+  }
+ 
+  $('btn-entries').addEventListener('click', openEntries);
+  $('close-entries').addEventListener('click', () => $('entries-dialog').close());
+  $('f-month').addEventListener('change', () => renderPayRows($('f-month').value));
+  $('pay-rows').addEventListener('input', updateTotals);
+ 
+  $('entry-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const lines = state.payers.map(p => ({
+      payer_id: p.id,
+      payment: readField(p.id, 'payment'),
+      down_payment: readField(p.id, 'down_payment'),
+      saved_amount: readField(p.id, 'saved_amount')
+    }));
+    try {
+      state = await api('/api/entries', {
+        method: 'POST',
+        body: JSON.stringify({ month: $('f-month').value, lines })
+      });
+      $('entry-msg').className = 'msg ok';
+      $('entry-msg').textContent = 'Saved ' + monthLabel($('f-month').value) + '.';
+      renderPayRows($('f-month').value);
+      renderPayerTotals();
+      renderEntries();
+      render();
+    } catch (err) {
+      $('entry-msg').className = 'msg';
+      $('entry-msg').textContent = err.message;
+    }
+  });
+ 
+  $('entries-body').addEventListener('click', async e => {
+    const edit = e.target.dataset.edit;
+    const del = e.target.dataset.del;
+    if (edit) {
+      $('f-month').value = edit;
+      renderPayRows(edit);
+      $('entry-msg').textContent = '';
+      $('entry-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (del && confirm(`Delete the entry for ${monthLabel(del)}?`)) {
+      try {
+        state = await api('/api/entries/' + del, { method: 'DELETE' });
+        renderPayRows($('f-month').value);
+        renderPayerTotals();
+        renderEntries();
+        render();
+      } catch (err) {
+        $('entry-msg').textContent = err.message;
+      }
+    }
+  });
+ 
+  // ---------- start ----------
+ 
+  api('/api/state')
+    .then(data => {
+      state = data;
+      if (state.settings.setup_done) showDashboard();
+      else showSetup(true);
+    })
+    .catch(err => {
+      $('setup').hidden = false;
+      $('setup-msg').textContent = 'Could not reach app.py. Start it with "python3 app.py" and reload. (' + err.message + ')';
+    });
+</script>
+ 
+</body>
+</html>
+ 
